@@ -1,0 +1,15 @@
+D:\WorkSpace\C#\ChatingRoom\ChatingRoom\bin\Debug\ChatingRoom.dll
+D:\WorkSpace\C#\ChatingRoom\ChatingRoom\bin\Debug\ChatingRoom.pdb
+D:\WorkSpace\C#\ChatingRoom\ChatingRoom\obj\Debug\ChatingRoom.csproj.AssemblyReference.cache
+D:\WorkSpace\C#\ChatingRoom\ChatingRoom\obj\Debug\ChatingRoom.csproj.CoreCompileInputs.cache
+D:\WorkSpace\C#\ChatingRoom\ChatingRoom\obj\Debug\ChatingRoom.dll
+D:\WorkSpace\C#\ChatingRoom\ChatingRoom\obj\Debug\ChatingRoom.pdb
+F:\SteamLibrary\steamapps\common\觅长生\本地Mod测试\ChatingRoom\plugins\ChatingRoom.dll
+F:\SteamLibrary\steamapps\common\觅长生\本地Mod测试\ChatingRoom\plugins\ChatingRoom.pdb
+F:\SteamLibrary\steamapps\workshop\content\1189490\2939886216\plugins\ChatingRoom.dll
+D:\WorkSpace\C#\MiChangShengMod\ChatingRoomMod\UnityClient\ChatingRoom\obj\Debug\ChatingRoom.csproj.AssemblyReference.cache
+D:\WorkSpace\C#\MiChangShengMod\ChatingRoomMod\UnityClient\ChatingRoom\obj\Debug\ChatingRoom.csproj.CoreCompileInputs.cache
+F:\SteamLibrary\steamapps\workshop\content\1189490\2939886216\plugins\ChatingRoom.pdb
+D:\WorkSpace\C#\MiChangShengMod\ChatingRoomMod\UnityClient\ChatingRoom\obj\Debug\ChatingRoom.csproj.CopyComplete
+D:\WorkSpace\C#\MiChangShengMod\ChatingRoomMod\UnityClient\ChatingRoom\obj\Debug\ChatingRoom.dll
+D:\WorkSpace\C#\MiChangShengMod\ChatingRoomMod\UnityClient\ChatingRoom\obj\Debug\ChatingRoom.pdb
