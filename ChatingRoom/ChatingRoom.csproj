@@ -159,9 +159,11 @@
     <Compile Include="LunDaoSayWordOnline.cs" />
     <Compile Include="LunDaoSuccessOnline.cs" />
     <Compile Include="LunTiMagOnline.cs" />
-    <Compile Include="OnLinePlayerIconButton.cs" />
+    <Compile Include="OnlinePlayerIconButton.cs" />
+    <Compile Include="OnlinePlayersPanel.cs" />
     <Compile Include="OtherPlayerController.cs" />
     <Compile Include="PlayerControllerOnline.cs" />
+    <Compile Include="PlayerDataPanel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SensitiveWordsFilter.cs" />
     <Compile Include="StartLunTiCellOnline.cs" />

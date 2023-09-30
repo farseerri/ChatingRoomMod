@@ -55,6 +55,8 @@ namespace ChatingRoom
         public static PlayerSetRandomFace otherPlayeSetRandomFace;
         public static InputField inputText;
 
+
+
         public void Close()
         {
             //Tools.canClickFlag = true;

@@ -36,8 +36,11 @@ namespace ChatingRoom
             sprite = ChatingRoomManager.Inst.GetChild<Image>(this.gameObject, "sprite", true).GetComponent<Image>();
             itemName = ChatingRoomManager.Inst.GetChild<Text>(this.gameObject, "name", true).GetComponent<Text>();
             count = ChatingRoomManager.Inst.GetChild<Text>(this.gameObject, "count", true).GetComponent<Text>();
+            if(ChatingRoomManager.chatingRoomPanel !=null)
+            {
+                ChatingRoomManager.chatingRoomPanel.emptySprite = qsprite.sprite;
+            }
 
-            ChatingRoomManager.chatingRoomPanel.emptySprite = qsprite.sprite;
         }
 
         public void SetPlayerDataWithItem(BaseItem baseItem, int price, string itemString)

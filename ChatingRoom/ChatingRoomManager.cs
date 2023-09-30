@@ -26,6 +26,7 @@ using Spine.Unity;
 using SkySwordKill.Next.DialogTrigger;
 using GoogleMobileAds.Api;
 using System.Runtime.InteropServices.ComTypes;
+using UltimateSurvival.StandardAssets;
 
 namespace ChatingRoom
 {
@@ -59,7 +60,9 @@ namespace ChatingRoom
         public static int lastMessageHoldCount = 100;
         public static Vector3 yourPostion;
         public static GameObject onlinePlayerIconPrefab;
-        public static GameObject OnlinePlayersPanel;
+        public static GameObject playerDataPanelPrefab;
+        public static OnlinePlayersPanel onlinePlayersPanel;
+        public static PlayerDataPanel playerDataPanel;
 
         //public enum 联机论道枚举
         //{
@@ -148,7 +151,8 @@ namespace ChatingRoom
         public static GameObject chatingBarPrefab;
         public static Text chatingText;
 
-        public IEnumerator RefreshEnumerator;
+
+
         public static Button chatingRoomEnterButton;
         public static Button groupPanelEnterButton;
         private static string yourNowScene = "";
@@ -351,6 +355,9 @@ namespace ChatingRoom
             lunTiNameSpriteList.Add(tempSprite);
             yield return LoadSpriteCoroutine("file://" + this.Path + "/阵.png");
             lunTiNameSpriteList.Add(tempSprite);
+
+
+
         }
 
 
@@ -371,28 +378,24 @@ namespace ChatingRoom
 
         private void Update()
         {
-            if (ChatingRoomManager.Inst.RefreshEnumerator != null)
+            if (ChatingRoomManager.onlinePlayersPanel != null && ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator != null)
             {
                 uint p2PreceiveMessagesCount;
                 if (SteamNetworking.IsP2PPacketAvailable(out p2PreceiveMessagesCount))
                 {
-                    Console.WriteLine("测试3");
                     // allocate buffer and needed variables
                     var buffer = new byte[p2PreceiveMessagesCount];
                     uint bytesRead;
                     CSteamID remoteId;
-                    Console.WriteLine("测试4");
                     // read the message into the buffer
                     if (SteamNetworking.ReadP2PPacket(buffer, p2PreceiveMessagesCount, out bytesRead, out remoteId))
                     {
                         // convert to string
                         char[] chars = new char[bytesRead / sizeof(char)];
                         Buffer.BlockCopy(buffer, 0, chars, 0, (int)p2PreceiveMessagesCount);
-                        Console.WriteLine("测试5");
                         string message = new string(chars, 0, chars.Length);
                         Console.WriteLine("Received a P2P message: " + message);
                         ChatingRoomManager.Inst.PraseReceivedChatingRoomMessage(message);
-                        Console.WriteLine("测试6");
                     }
                 }
             }
@@ -441,7 +444,33 @@ namespace ChatingRoom
             PopChatingRoomUI();
         }
 
+        [HarmonyPostfix, HarmonyPatch(declaringType: typeof(RoundManager), methodName: "gameStart")]
+        public static void RoundManager_gameStart_Prefix(ref RoundManager __instance)
+        {
+            if (ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator != null)
+            {
+                ChatingRoomManager.onlinePlayersPanel.StopAllCoroutines();
+                ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator = null;
+            }
 
+            foreach (Transform child in onlinePlayersPanel.transform)
+            {
+                GameObject.DestroyImmediate(child.gameObject);
+            }
+        }
+
+        [HarmonyPrefix, HarmonyPatch(declaringType: typeof(RoundManager), methodName: "OnDestroy")]
+        public static bool RoundManager_OnDestroy_Prefix(ref RoundManager __instance)
+        {
+            if (ChatingRoomManager.onlinePlayersPanel != null && ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator != null)
+            {
+                ChatingRoomManager.onlinePlayersPanel.StopAllCoroutines();
+                ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator = null;
+            }
+            ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator = ChatingRoomManager.Inst.RefreshMemberListEnumerator();
+            onlinePlayersPanel.StartCoroutine(ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator);
+            return true;
+        }
 
         [HarmonyPrefix, HarmonyPatch(declaringType: typeof(Tools), methodName: "loadMapScenes", argumentTypes: new Type[] { typeof(string), typeof(bool) })]
         public static bool Tools_loadMapScenes_Prefix_Completed(ref Tools __instance, string name, bool LastSceneIsValue)
@@ -498,6 +527,10 @@ namespace ChatingRoom
         {
             yourNowScene = name;
             ChatingRoomManager.SetLobbyMemberData("nowScene", yourNowScene);
+            foreach (Transform child in onlinePlayersPanel.transform)
+            {
+                GameObject.DestroyImmediate(child.gameObject);
+            }
             return true;
         }
 
@@ -643,16 +676,26 @@ namespace ChatingRoom
         {
 
             Console.WriteLine("游戏载入完成，搜索聊天室");
+            if (onlinePlayersPanel == null)
+            {
+                onlinePlayersPanel = new GameObject("OnlinePlayersPanel").AddComponent<OnlinePlayersPanel>();
+                onlinePlayersPanel.gameObject.AddComponent<Canvas>();
+                onlinePlayersPanel.gameObject.AddComponent<CanvasScaler>();
+                onlinePlayersPanel.gameObject.AddComponent<GraphicRaycaster>();
+                onlinePlayersPanel.transform.parent = null;
+                DontDestroyOnLoad(onlinePlayersPanel.gameObject);
+            }
             //lobbyName = lobbyNamePre + "_" + name;
             lobbyName = lobbyNamePre;
             SeachingExistingChatingRoom(lobbyName);
-            if (ChatingRoomManager.Inst.RefreshEnumerator != null)
+            if (ChatingRoomManager.onlinePlayersPanel != null && ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator != null)
             {
-                ChatingRoomManager.Inst.StopCoroutine(ChatingRoomManager.Inst.RefreshEnumerator);
-                ChatingRoomManager.Inst.RefreshEnumerator = null;
+                ChatingRoomManager.onlinePlayersPanel.StopAllCoroutines();
+                ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator = null;
             }
-            ChatingRoomManager.Inst.RefreshEnumerator = ChatingRoomManager.Inst.RefreshMemberListEnumerator();
-            ChatingRoomManager.Inst.StartCoroutine(ChatingRoomManager.Inst.RefreshEnumerator);
+            ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator = ChatingRoomManager.Inst.RefreshMemberListEnumerator();
+            ChatingRoomManager.onlinePlayersPanel.StartCoroutine(ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator);
+
 
         }
 
@@ -667,23 +710,27 @@ namespace ChatingRoom
                 Destroy(chatingRoomEnterButton.gameObject);
                 chatingRoomEnterButton = null;
             }
-            if (ChatingRoomManager.Inst.RefreshEnumerator != null)
-            {
-                ChatingRoomManager.Inst.StopCoroutine(ChatingRoomManager.Inst.RefreshEnumerator);
-                ChatingRoomManager.Inst.RefreshEnumerator = null;
-            }
+            //if (ChatingRoomManager.onlinePlayersPanel != null && ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator != null)
+            //{
+            //    ChatingRoomManager.onlinePlayersPanel.StopAllCoroutines();
+            //    ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator = null;
+            //}
             return true;
         }
 
         [HarmonyPrefix, HarmonyPatch(typeof(NextScene), "Start")]
         public static bool NextScene_Start_Prefix(ref NextScene __instance)
         {
+
             //删除聊天室界面();
             if (chatingRoomEnterButton != null)
             {
                 Destroy(chatingRoomEnterButton.gameObject);
                 chatingRoomEnterButton = null;
             }
+
+
+
             return true;
         }
 
@@ -1041,7 +1088,20 @@ namespace ChatingRoom
                             }
                         }
                         break;
-
+                    case "野外请求玩家数据":
+                        {
+                            string senderName = SteamFriends.GetFriendPersonaName((CSteamID)ulong.Parse(messgeJsonObj.senderID));
+                            string receiveName = SteamFriends.GetFriendPersonaName((CSteamID)ulong.Parse(messgeJsonObj.receiveID));
+                            string commandContent = senderName + "向" + receiveName + "野外请求玩家数据";
+                            if (messgeJsonObj.receiveID == SteamUser.GetSteamID().m_SteamID.ToString())
+                            {
+                                ChatingRoomManager.CustomPlayerDataClass customPlayerData = ChatingRoomManager.Inst.SetPlayerData();
+                                customPlayerData.itemData = "";
+                                string playerDataString = JsonMapper.ToJson(customPlayerData);
+                                SendChatMessage(messgeJsonObj.senderID.ToString(), "回复野外玩家数据", playerDataString);
+                            }
+                        }
+                        break;
                     case "回复摆摊信息":
                         {
                             string senderName = SteamFriends.GetFriendPersonaName((CSteamID)ulong.Parse(messgeJsonObj.senderID));
@@ -1086,11 +1146,59 @@ namespace ChatingRoom
                                 ChatingRoomMainPanel.addFriendButton.onClick.RemoveAllListeners();
                                 ChatingRoomMainPanel.addFriendButton.onClick.AddListener(() => AddSteamFirend(targetID));
 
-                                ShowPlayerFace(customPlayerData);
+                                ShowPlayerFace(customPlayerData, ChatingRoomMainPanel.faceObj.transform);
                             }
                         }
                         break;
+                    case "回复野外玩家数据":
+                        {
+                            string senderName = SteamFriends.GetFriendPersonaName((CSteamID)ulong.Parse(messgeJsonObj.senderID));
+                            string receiveName = SteamFriends.GetFriendPersonaName((CSteamID)ulong.Parse(messgeJsonObj.receiveID));
+                            string commandContent = senderName + "向" + receiveName + "回复了摆摊数据";
+                            //Console.WriteLine(commandContent);
+                            if (messgeJsonObj.receiveID == SteamUser.GetSteamID().m_SteamID.ToString())
+                            {
+                                Console.WriteLine("接收到了野外玩家数据回复:" + messgeJsonObj.commandContent);
 
+                                CustomPlayerDataClass customPlayerData = JsonMapper.ToObject<CustomPlayerDataClass>(messgeJsonObj.commandContent);
+                                //JSONObject jsonObj = JSONObject.Create(customPlayerData.itemData, -2, false, false);
+
+                                //KBEngine.ITEM_INFO item_Info = KBEngine.ITEM_INFO.FromJSONObject(jsonObj);
+
+                                //BaseItem baseItem = BaseItem.Create(item_Info.itemId, (int)item_Info.itemCount, item_Info.uuid, item_Info.Seid);
+
+                                //ChatingRoomManager.chatingRoomPanel.otherPlayerItemCell.SetPlayerDataWithItem(baseItem, int.Parse(customPlayerData.customPrice), jsonObj.ToString(false));
+
+                                //Text priceText = ChatingRoomManager.Inst.GetChild<Text>(chatingRoomPanel.otherPlayerItemCell.gameObject, "Price", true).GetComponent<Text>();
+
+                                //Text stateText = ChatingRoomManager.Inst.GetChild<Text>(chatingRoomPanel.otherPlayerItemCell.gameObject, "State", true).GetComponent<Text>();
+
+
+                                KBEngine.Avatar player = PlayerEx.Player;
+                                int otherPlayerShenShi = int.Parse(customPlayerData.shenShi);
+                                if (otherPlayerShenShi > player.shengShi)
+                                {
+                                    UIPopTip.Inst.Pop("对方是前辈高人，你无法探查他的状态", PopTipIconType.叹号);
+                                    PlayerDataPanel.stateText.text = customPlayerData.sex + " " + "XXXX" + " " + "XX" + " " + "XXXX";
+                                }
+                                else
+                                {
+                                    UIPopTip.Inst.Pop("对方神识屏蔽不了你，他的状态你一目了然", PopTipIconType.叹号);
+                                    PlayerDataPanel.playerName.text = customPlayerData.xiuxianName;
+                                    PlayerDataPanel.stateText.text = customPlayerData.sex + " " + customPlayerData.menpai + " " + customPlayerData.age + " " + customPlayerData.jingJie;
+                                }
+                                //priceText.text = customPlayerData.customPrice;
+
+                                //PlayerDataPanel.lunDaoInviteButton.onClick.RemoveAllListeners();
+                                //PlayerDataPanel.lunDaoInviteButton.onClick.AddListener(() => InviteAndSelectLundao(targetID));
+                                //PlayerDataPanel.addFriendButton.onClick.RemoveAllListeners();
+                                //PlayerDataPanel.addFriendButton.onClick.AddListener(() => AddSteamFirend(targetID));
+
+                                ShowPlayerFace(customPlayerData, PlayerDataPanel.faceObj.transform);
+                                ChatingRoomManager.playerDataPanel.gameObject.SetActive(true);
+                            }
+                        }
+                        break;
                     case "拒绝回复摆摊信息":
                         {
                             string senderName = SteamFriends.GetFriendPersonaName((CSteamID)ulong.Parse(messgeJsonObj.senderID));
@@ -1134,7 +1242,7 @@ namespace ChatingRoom
                                 ChatingRoomMainPanel.addFriendButton.onClick.RemoveAllListeners();
                                 ChatingRoomMainPanel.addFriendButton.onClick.AddListener(() => AddSteamFirend(targetID));
 
-                                ShowPlayerFace(customPlayerData);
+                                ShowPlayerFace(customPlayerData, ChatingRoomMainPanel.faceObj.transform);
 
                             }
                         }
@@ -1365,7 +1473,7 @@ namespace ChatingRoom
 
         }
 
-        public void ShowPlayerFace(CustomPlayerDataClass customPlayerData)
+        public void ShowPlayerFace(CustomPlayerDataClass customPlayerData, Transform parent)
         {
 
             try
@@ -1379,9 +1487,9 @@ namespace ChatingRoom
                 JSONObject otherFaceJson = JSONObject.Create(customPlayerData.gameFaceData, -2, false, false);
                 Console.WriteLine("otherFaceJson:" + otherFaceJson);
 
-                GameObject otherrSetRandomFaceParent = Resources.Load<GameObject>("Prefabs/SayDialog").GetComponentInChildren<PlayerSetRandomFace>().transform.parent.gameObject;
-                otherrSetRandomFaceParent.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-                ChatingRoomMainPanel.otherPlayeSetRandomFace = Instantiate(otherrSetRandomFaceParent, ChatingRoomMainPanel.faceObj.transform).GetComponentInChildren<PlayerSetRandomFace>();
+                GameObject otherSetRandomFaceParent = Resources.Load<GameObject>("Prefabs/SayDialog").GetComponentInChildren<PlayerSetRandomFace>().transform.parent.gameObject;
+                otherSetRandomFaceParent.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+                ChatingRoomMainPanel.otherPlayeSetRandomFace = Instantiate(otherSetRandomFaceParent, parent).GetComponentInChildren<PlayerSetRandomFace>();
 
 
                 ChatingRoomManager.randomAvatar(ref ChatingRoomMainPanel.otherPlayeSetRandomFace, otherFaceJson);
@@ -1484,6 +1592,8 @@ namespace ChatingRoom
                         ChatingRoomManager.SetLobbyMemberData("yourPostion", yourPostionString);
                         ChatingRoomManager.SetLobbyMemberData("gender", selfGender);
                         ChatingRoomManager.SetLobbyMemberData("levelType", levelType);
+
+
                     }
 
                 }
@@ -1494,23 +1604,12 @@ namespace ChatingRoom
 
                 activePlayerCount = 0;
 
-
-                OnlinePlayersPanel = GetGameObjectStatic<Transform>(null, "OnlinePlayersPanel", false);
-                if (OnlinePlayersPanel == null)
+                foreach (Transform child in onlinePlayersPanel.transform)
                 {
-                    OnlinePlayersPanel = new GameObject("OnlinePlayersPanel");
-                    OnlinePlayersPanel.AddComponent<Canvas>();
-                    OnlinePlayersPanel.AddComponent<EventSystem>();
-                    OnlinePlayersPanel.transform.parent = null;
 
+                    GameObject.DestroyImmediate(child.gameObject);
                 }
-                else
-                {
-                    foreach (Transform child in OnlinePlayersPanel.transform)
-                    {
-                        GameObject.DestroyImmediate(child.gameObject);
-                    }
-                }
+
 
                 foreach (KeyValuePair<CSteamID, string> keyValuePair in members)
                 {
@@ -1530,6 +1629,7 @@ namespace ChatingRoom
                         string xiuXianMing = SteamMatchmaking.GetLobbyMemberData(lobbyID, keyValuePair.Key, "xiuXianMing");
                         string playerGenderString = SteamMatchmaking.GetLobbyMemberData(lobbyID, keyValuePair.Key, "gender");
                         string playerGender;
+                        string menPai = SteamMatchmaking.GetLobbyMemberData(lobbyID, keyValuePair.Key, "menPai");
 
                         if (playerGenderString == "1")
                         {
@@ -1550,23 +1650,28 @@ namespace ChatingRoom
                         if (xiuXianMing != selfName)
                         {
 
-                            if (playerNowScene == yourNowScene)
+                            if (playerNowScene == SceneEx.NowSceneName)
                             {
 
                                 GameObject onlinePlayerIconPrefabGO;
-                                onlinePlayerIconPrefabGO = GetGameObjectStatic<Transform>(OnlinePlayersPanel, xiuXianMing, false);
+                                onlinePlayerIconPrefabGO = GetGameObjectStatic<Transform>(onlinePlayersPanel.gameObject, xiuXianMing, false);
 
                                 if (onlinePlayerIconPrefabGO == null)
                                 {
 
-                                    onlinePlayerIconPrefabGO = UnityEngine.Object.Instantiate<GameObject>(onlinePlayerIconPrefab, OnlinePlayersPanel.transform);
+                                    onlinePlayerIconPrefabGO = UnityEngine.Object.Instantiate<GameObject>(onlinePlayerIconPrefab, onlinePlayersPanel.transform);
+                                    OnlinePlayerIconButton onlinePlayerIconButton = onlinePlayerIconPrefabGO.AddComponent<OnlinePlayerIconButton>();
+                                    onlinePlayerIconButton.playerSteamID = keyValuePair.Key;
+                                    onlinePlayerIconButton.playerName = xiuXianMing;
+                                    onlinePlayerIconButton.playerGender = playerGender;
+                                    onlinePlayerIconButton.menPai = menPai;
 
                                     SkeletonDataAsset data;
 
                                     var obj = new GameObject("骨骼");
                                     obj.transform.SetParent(onlinePlayerIconPrefabGO.transform);
                                     obj.transform.localPosition = new Vector3(0f, 0f, 0f);
-                                    obj.transform.localScale = new Vector3(1, 1, 1);
+                                    obj.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
 
 
                                     //if (SceneEx.NowSceneName.StartsWith("Sea"))
@@ -1590,17 +1695,16 @@ namespace ChatingRoom
                                     //}
 
                                 }
-                                onlinePlayerIconPrefabGO.transform.localScale = new Vector3(0.002f, 0.002f, 0f);
+                                onlinePlayerIconPrefabGO.transform.localScale = new Vector3(0.01f, 0.01f, 0f);
 
 
 
                                 onlinePlayerIconPrefabGO.transform.position = playerPosition;
                                 onlinePlayerIconPrefabGO.name = xiuXianMing;
                                 Text onlinePlayerText = onlinePlayerIconPrefabGO.GetComponentInChildren<Text>();
-                                onlinePlayerText.transform.localPosition = new Vector3(0f, 600f, 0f);
-                                onlinePlayerText.transform.localScale = new Vector3(10, 10, 1);
                                 onlinePlayerText.text = xiuXianMing;
-                                //onlinePlayerIconPrefabGO.gameObject.AddComponent<OnLinePlayerIconButton>();
+
+                                SetTextMenpaiColor(onlinePlayerText, menPai);
 
                             }
 
@@ -1675,47 +1779,8 @@ namespace ChatingRoom
                 {
                     //t.text = keyValuePair.Key.ToString();
                     t.text = SensitiveWordsFilter.Filter(xiuXianMing);
-                    switch (menPai)
-                    {
-                        case "金虹剑派":
-                            {
-                                t.color = Color.yellow;
-                            }
-                            break;
 
-                        case "竹山宗":
-                            {
-                                t.color = Color.green;
-                            }
-                            break;
-                        case "星河剑派":
-                            {
-
-                                t.color = new Color32(128, 255, 255, 255);
-                            }
-                            break;
-                        case "离火门":
-                            {
-                                t.color = Color.red;
-                            }
-                            break;
-
-                        case "化尘教":
-                            {
-                                t.color = new Color32(224, 167, 5, 255);
-                            }
-                            break;
-                        case "散修":
-                            {
-                                t.color = Color.white;
-                            }
-                            break;
-                        default:
-                            {
-                                t.color = Color.black;
-                            }
-                            break;
-                    }
+                    SetTextMenpaiColor(t, menPai);
                 }
 
                 if (t.name == "Name")
@@ -1796,13 +1861,17 @@ namespace ChatingRoom
             //Console.WriteLine("imageID:" + imageID);
         }
 
-
         private void OnAvatarImageLoaded(AvatarImageLoaded_t callback)
         {
             // 将Steam头像转换为Unity Texture2D对象
             Console.WriteLine("图片回调触发,callback.m_iImage:" + callback.m_iImage);
             Texture2D avatarTexture = GetSteamImageAsTexture(callback.m_iImage);
-            chatingRoomPanel.otherAvatarImage.texture = avatarTexture;
+            if (chatingRoomPanel != null)
+            {
+                chatingRoomPanel.otherAvatarImage.texture = avatarTexture;
+            }
+            PlayerDataPanel.otherAvatarImage.texture = avatarTexture;
+
         }
 
 
@@ -1871,7 +1940,7 @@ namespace ChatingRoom
 
 
 
-        public static void PopChatingRoomMainPanel(bool 置顶)
+        public static void PopChatingRoomMainPanel(bool setTop)
         {
             if (chatingRoomPanel == null)
             {
@@ -1882,7 +1951,7 @@ namespace ChatingRoom
                 chatingRoomPanel = gameObject.AddComponent<ChatingRoomMainPanel>();
                 Console.WriteLine("弹出聊天室主菜单");
 
-                if (置顶)
+                if (setTop)
                 {
                     chatingRoomPanel.GetComponent<RectTransform>().SetAsLastSibling();
                 }
@@ -1940,7 +2009,7 @@ namespace ChatingRoom
             friendbarPrefab = mumuAssetBundle.LoadAsset<GameObject>("Friendbar");
             groupPanelEnterButtonPrefab = mumuAssetBundle.LoadAsset<GameObject>("GroupPanelEnterButton");
             onlinePlayerIconPrefab = mumuAssetBundle.LoadAsset<GameObject>("OnlinePlayer");
-
+            playerDataPanelPrefab = mumuAssetBundle.LoadAsset<GameObject>("PlayerDataPanel");
             yield break;
         }
 
@@ -2285,7 +2354,87 @@ namespace ChatingRoom
             return vector3.x.ToString() + "," + vector3.y.ToString() + "," + vector3.z.ToString();
         }
 
+        public ChatingRoomManager.CustomPlayerDataClass SetPlayerData()
+        {
+            KBEngine.Avatar avatar = Tools.instance.getPlayer();
+            string jingJie = LevelUpDataJsonData.DataDict[(int)avatar.level].Name;
+            ChatingRoomManager.CustomPlayerDataClass customPlayerData = new ChatingRoomManager.CustomPlayerDataClass();
+
+            customPlayerData.customPrice = "0";
+            customPlayerData.xiuxianName = avatar.name;
+
+            if (avatar.Sex == 1)
+            {
+                customPlayerData.sex = "男";
+            }
+            else if (avatar.Sex == 2)
+            {
+                customPlayerData.sex = "女";
+            }
 
 
+            customPlayerData.age = avatar.age.ToString() + "岁";
+            customPlayerData.menpai = Tools.getStr("menpai" + avatar.menPai);
+            customPlayerData.shenShi = avatar.shengShi.ToString();
+            customPlayerData.jingJie = jingJie;
+            customPlayerData.faceID = avatar.Face.ToString();
+            customPlayerData.lunDaoState = avatar.LunDaoState.ToString();
+
+            if (SteamUser.GetSteamID().m_SteamID.ToString() == "76561198091009835")
+            {
+                customPlayerData.gameFaceData = jsonData.instance.AvatarRandomJsonData["609"].ToString();
+            }
+            else
+            {
+                customPlayerData.gameFaceData = jsonData.instance.AvatarRandomJsonData["1"].ToString();
+            }
+
+            return customPlayerData;
+        }
+
+        public static void SetTextMenpaiColor(Text text, string menPai)
+        {
+            switch (menPai)
+            {
+                case "金虹剑派":
+                    {
+                        text.color = Color.yellow;
+                    }
+                    break;
+
+                case "竹山宗":
+                    {
+                        text.color = Color.green;
+                    }
+                    break;
+                case "星河剑派":
+                    {
+
+                        text.color = new Color32(128, 255, 255, 255);
+                    }
+                    break;
+                case "离火门":
+                    {
+                        text.color = Color.red;
+                    }
+                    break;
+
+                case "化尘教":
+                    {
+                        text.color = new Color32(224, 167, 5, 255);
+                    }
+                    break;
+                case "散修":
+                    {
+                        text.color = Color.white;
+                    }
+                    break;
+                default:
+                    {
+                        text.color = Color.black;
+                    }
+                    break;
+            }
+        }
     }
 }

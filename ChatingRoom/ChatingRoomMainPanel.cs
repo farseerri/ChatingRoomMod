@@ -33,12 +33,12 @@ namespace ChatingRoom
 
         public override void OnDestroy()
         {
-            if (ChatingRoomManager.Inst.RefreshEnumerator != null)
-            {
+            //if (ChatingRoomManager.onlinePlayersPanel != null && ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator != null)
+            //{
 
-                StopCoroutine(ChatingRoomManager.Inst.RefreshEnumerator);
-                ChatingRoomManager.Inst.RefreshEnumerator = null;
-            }
+            //    ChatingRoomManager.onlinePlayersPanel.StopAllCoroutines();
+            //    ChatingRoomManager.onlinePlayersPanel.RefreshEnumerator = null;
+            //}
             base.OnDestroy();
         }
     }
